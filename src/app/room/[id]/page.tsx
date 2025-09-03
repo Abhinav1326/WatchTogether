@@ -19,15 +19,21 @@ import YouTube from "react-youtube";
 
 export default function RoomPage() {
   const { id } = useParams(); // id is the dynamic route param
-  const [userId, setUserId] = useState<string | null>(null);
-  const [userName, setUserName] = useState("");
-  const [roomUsernames, setRoomUsernames] = useState<string[]>([]);
-  const [chatInput, setChatInput] = useState("");
+  // Removed unused: userId, setUserId, roomUsernames, setRoomUsernames, showInput, setShowInput
+  const [userName, setUserName] = useState<string>("");
+  const [chatInput, setChatInput] = useState<string>("");
   const [messages, setMessages] = useState<{user: string, text: string}[]>([]);
-  const [inputUrl, setInputUrl] = useState("");
-  const playerRef = useRef<any>(null);
-  const [videoId, setVideoId] = useState("");
-  const [showInput, setShowInput] = useState(true);
+  const [inputUrl, setInputUrl] = useState<string>("");
+  const playerRef = useRef<YouTubePlayer | null>(null);
+  const [videoId, setVideoId] = useState<string>("");
+
+  // Helper type for YouTube player
+  type YouTubePlayer = {
+    seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+    playVideo: () => void;
+    pauseVideo: () => void;
+    getCurrentTime: () => number;
+  };
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -40,19 +46,11 @@ export default function RoomPage() {
   }, []);
 
   // Listen for room_users event to get all usernames in the room
-  useEffect(() => {
-    socket.on("room_users", (usernames: string[]) => {
-      setRoomUsernames(usernames);
-    });
-    return () => {
-      socket.off("room_users");
-    };
-  }, []);
+  // Removed unused: roomUsernames
   // Fetch Firestore username for logged-in user
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        setUserId(user.uid);
         getDoc(doc(db, "users", user.uid)).then(userDoc => {
           if (userDoc.exists()) {
             const data = userDoc.data();
@@ -62,43 +60,42 @@ export default function RoomPage() {
           }
         });
       } else {
-        setUserId(null);
         setUserName("");
       }
     });
     return () => unsubscribe();
   }, []);
-  const ignoreSocketRef = useRef(false);
+  const ignoreSocketRef = useRef<boolean>(false);
 
   useEffect(() => {
     socket.emit("join_room", id);
 
     // Listen for video sync events
-    const handlePlay = ({ currentTime }: any) => {
+    const handlePlay = ({ currentTime }: { currentTime: number }) => {
       if (!playerRef.current) return;
       ignoreSocketRef.current = true;
       playerRef.current.seekTo(currentTime, true);
       playerRef.current.playVideo();
       setTimeout(() => { ignoreSocketRef.current = false; }, 500);
     };
-    const handlePause = ({ currentTime }: any) => {
+    const handlePause = ({ currentTime }: { currentTime: number }) => {
       if (!playerRef.current) return;
       ignoreSocketRef.current = true;
       playerRef.current.seekTo(currentTime, true);
       playerRef.current.pauseVideo();
       setTimeout(() => { ignoreSocketRef.current = false; }, 500);
     };
-    const handleSeek = ({ currentTime }: any) => {
+    const handleSeek = ({ currentTime }: { currentTime: number }) => {
       if (!playerRef.current) return;
       ignoreSocketRef.current = true;
       playerRef.current.seekTo(currentTime, true);
       setTimeout(() => { ignoreSocketRef.current = false; }, 500);
     };
-    const handleUrlChange = ({ url }: any) => {
+    const handleUrlChange = ({ url }: { url: string }) => {
       const vid = extractVideoId(url);
       if (vid) {
         setVideoId(vid);
-        setShowInput(false);
+        // Removed setShowInput(false) since showInput is unused
       }
     };
 
@@ -118,7 +115,7 @@ export default function RoomPage() {
       socket.emit("join_room", { roomId: id, username: userName });
     }
 
-    const syncHandler = ({ action, time, videoId: vid }: any) => {
+    const syncHandler = ({ action, time, videoId: vid }: { action: string; time: number; videoId: string }) => {
       if (!playerRef.current) {
         return;
       }
@@ -146,10 +143,10 @@ export default function RoomPage() {
 
   // Chat socket logic
   useEffect(() => {
-    const handleChatMessage = (msg: {user: string, text: string}) => {
+    const handleChatMessage = (msg: { user: string; text: string }) => {
       setMessages(prev => [...prev, msg]);
     };
-    const handleChatHistory = (history: {user: string, text: string}[]) => {
+    const handleChatHistory = (history: { user: string; text: string }[]) => {
       setMessages(history);
     };
     socket.on("chat_message", handleChatMessage);
@@ -169,7 +166,7 @@ export default function RoomPage() {
   };
 
   // Helper to extract YouTube video ID from URL
-  const extractVideoId = (url: any) => {
+  const extractVideoId = (url: string): string | null => {
     const regExp = /^.*(?:youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
     const match = url.match(regExp);
     return match && match[1].length === 11 ? match[1] : null;
@@ -179,7 +176,7 @@ export default function RoomPage() {
     const vid = extractVideoId(inputUrl);
     if (vid) {
       setVideoId(vid);
-      setShowInput(false);
+      // Removed setShowInput(false) since showInput is unused
       // Broadcast URL change to others
       socket.emit("video_url_change", { roomId: id, url: inputUrl });
     } else {
@@ -187,23 +184,23 @@ export default function RoomPage() {
     }
   };
 
-  const onReady = (event: any) => {
+  const onReady = (event: { target: YouTubePlayer }) => {
     playerRef.current = event.target;
   };
 
-  const handlePlay = () => {
+  const handlePlay = (): void => {
     if (!playerRef.current || ignoreSocketRef.current) return;
     const time = playerRef.current.getCurrentTime();
     socket.emit("video_play", { roomId: id, currentTime: time });
   };
 
-  const handlePause = () => {
+  const handlePause = (): void => {
     if (!playerRef.current || ignoreSocketRef.current) return;
     const time = playerRef.current.getCurrentTime();
     socket.emit("video_pause", { roomId: id, currentTime: time });
   };
 
-  const handleSeek = () => {
+  const handleSeek = (): void => {
     if (!playerRef.current || ignoreSocketRef.current) return;
     const time = playerRef.current.getCurrentTime();
     socket.emit("video_seek", { roomId: id, currentTime: time });

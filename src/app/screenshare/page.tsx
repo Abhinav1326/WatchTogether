@@ -7,10 +7,11 @@ import { doc, setDoc } from "firebase/firestore";
 import { motion, AnimatePresence } from "framer-motion";
 import { nanoid } from "nanoid";
 import { Copy, X } from "lucide-react";
+import type { User } from "firebase/auth";
 
 export default function RoomLob() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [joinCode, setJoinCode] = useState("");
   const [createdRoom, setCreatedRoom] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -29,6 +30,7 @@ export default function RoomLob() {
   // Create Room
   const handleCreateRoom = async () => {
     const roomId = nanoid(8); // short unique ID
+    if (!user) return;
     await setDoc(doc(db, "rooms", roomId), {
       host: user.uid,
       createdAt: Date.now(),

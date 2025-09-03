@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import type { User } from "firebase/auth";
 import Link from "next/link";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -8,7 +9,7 @@ import { Menu, X } from "lucide-react";
 
 export default function Navbar() {
   const router = useRouter();
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {

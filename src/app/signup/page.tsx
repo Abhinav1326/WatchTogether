@@ -38,8 +38,12 @@ export default function SignupPage() {
       });
 
       router.push("/home");
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err && typeof err === "object" && "message" in err) {
+        setError((err as { message: string }).message);
+      } else {
+        setError("Signup failed");
+      }
     }
   };
 
@@ -58,8 +62,12 @@ export default function SignupPage() {
       }, { merge: true });
 
       router.push("/home");
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      if (err && typeof err === "object" && "message" in err) {
+        setError((err as { message: string }).message);
+      } else {
+        setError("Signup failed");
+      }
     }
   };
 
